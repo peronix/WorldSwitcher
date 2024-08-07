@@ -8,16 +8,12 @@ namespace WorldSwitcher.Windows;
 public class ConfigWindow : Window, IDisposable
 {
     private Configuration Configuration;
-
-    // We give this window a constant ID using ###
-    // This allows for labels being dynamic, like "{FPS Counter}fps###XYZ counter window",
-    // and the window ID will always be "###XYZ counter window" for ImGui
     public ConfigWindow(Plugin plugin) : base("World Switcher Config###WorldSwitcherConfig")
     {
         Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
                 ImGuiWindowFlags.NoScrollWithMouse;
 
-        Size = new Vector2(232, 90);
+        Size = new Vector2(250, 180);
         SizeCondition = ImGuiCond.Always;
 
         Configuration = plugin.Configuration;
@@ -25,34 +21,40 @@ public class ConfigWindow : Window, IDisposable
 
     public void Dispose() { }
 
-    public override void PreDraw()
-    {
-        // Flags must be added or removed before Draw() is being called, or they won't apply
-        if (Configuration.IsConfigWindowMovable)
-        {
-            Flags &= ~ImGuiWindowFlags.NoMove;
-        }
-        else
-        {
-            Flags |= ImGuiWindowFlags.NoMove;
-        }
-    }
-
     public override void Draw()
     {
-        // can't ref a property, so use a local copy
-        var configValue = Configuration.SomePropertyToBeSavedAndWithADefault;
-        if (ImGui.Checkbox("Random Config Bool", ref configValue))
+        var isEnabled = Configuration.WorldSwitchEnabled;
+        if (ImGui.Checkbox("World Switcher Enabled", ref isEnabled))
         {
-            Configuration.SomePropertyToBeSavedAndWithADefault = configValue;
-            // can save immediately on change, if you don't want to provide a "Save and Close" button
+            Configuration.WorldSwitchEnabled = isEnabled;
             Configuration.Save();
         }
         
-        var movable = Configuration.IsConfigWindowMovable;
-        if (ImGui.Checkbox("Movable Config Window", ref movable))
+        var closeOnCurrent = Configuration.WorldSwitchEnabled;
+        if (ImGui.Checkbox("Current World -> Close Switcher", ref closeOnCurrent))
         {
-            Configuration.IsConfigWindowMovable = movable;
+            Configuration.CloseOnCurrent = closeOnCurrent;
+            Configuration.Save();
+        }
+        
+        var sRanks = Configuration.SRanks;
+        if (ImGui.Checkbox("S Ranks", ref sRanks))
+        {
+            Configuration.SRanks = sRanks;
+            Configuration.Save();
+        }
+        
+        var aRanks = Configuration.ARanks;
+        if (ImGui.Checkbox("A Ranks", ref aRanks))
+        {
+            Configuration.ARanks = aRanks;
+            Configuration.Save();
+        }
+        
+        var bRanks = Configuration.BRanks;
+        if (ImGui.Checkbox("B Ranks", ref bRanks))
+        {
+            Configuration.BRanks = bRanks;
             Configuration.Save();
         }
     }

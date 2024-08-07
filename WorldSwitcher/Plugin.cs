@@ -37,9 +37,9 @@ public sealed class Plugin : IDalamudPlugin
 
     private IChatGui Chat { get; init; }
     private IAddonLifecycle AddonLifecycle { get; init; }
-    private MainWindow MainWindow { get; init; }
     
     internal string[] LastSeenListEntries { get; set; } = [];
+    internal string LastSeenCurrentWorld { get; set; }
     internal unsafe AtkUnitBase* LastSeenSwitcher;
     
     private AtkValueArray FormatValues(params object[] values)
@@ -50,29 +50,17 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin(IChatGui chat, IAddonLifecycle addonLifecycle)
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-
-        // you might normally want to embed resources and load them from the manifest stream
-        var goatImagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
-
         ConfigWindow = new ConfigWindow(this);
-        MainWindow = new MainWindow(this, goatImagePath);
 
         WindowSystem.AddWindow(ConfigWindow);
-        WindowSystem.AddWindow(MainWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "A useful message to display in /xlhelp"
+            HelpMessage = "Open config"
         });
 
         PluginInterface.UiBuilder.Draw += DrawUI;
-
-        // This adds a button to the plugin installer entry of this plugin which allows
-        // to toggle the display status of the configuration ui
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
-
-        // Adds another button that is doing the same but for the main ui of the plugin
-        PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
 
         Chat = chat;
         Chat.ChatMessage += OnChatMessage;
@@ -85,9 +73,7 @@ public sealed class Plugin : IDalamudPlugin
     public void Dispose()
     {
         WindowSystem.RemoveAllWindows();
-
         ConfigWindow.Dispose();
-        MainWindow.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
     }
@@ -95,7 +81,7 @@ public sealed class Plugin : IDalamudPlugin
     private void OnCommand(string command, string args)
     {
         // in response to the slash command, just toggle the display status of our main ui
-        ToggleMainUI();
+        ToggleConfigUI();
     }
 
     private unsafe void Cleanup(AddonEvent eventType, AddonArgs addonInfo)
@@ -117,6 +103,7 @@ public sealed class Plugin : IDalamudPlugin
             var worldListComponent = (AtkComponentNode*)informationBoxBorder->PrevSiblingNode;
             var nodeList = (AtkComponentNode**)worldListComponent->Component->UldManager.NodeList;
             
+            
             LastSeenListEntries = new string[18];
 
             for (var i = 0; i < 18; i++) {
@@ -126,26 +113,20 @@ public sealed class Plugin : IDalamudPlugin
                 var nameNode = (AtkTextNode*) node->Component->UldManager.NodeList[4];
                 LastSeenListEntries[i] = nameNode->NodeText.ToString();
             }
+            
+            var worldListHeader = (AtkTextNode*) worldListComponent->AtkResNode.PrevSiblingNode;
+            var currentWorldContainer = worldListHeader->AtkResNode.PrevSiblingNode;
+            var currentWorldName = (AtkTextNode*) currentWorldContainer->ChildNode;
+            LastSeenCurrentWorld = currentWorldName->NodeText.ToString();
         }
         catch (Exception e)
         {
-            // Chat.Print(new()
-            // {
-            //     Type = XivChatType.Debug,
-            //     Name = "World Switcher",
-            //     Message = e.ToString()
-            // });
         }
     }
 
     private unsafe void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
     {
-        if (LastSeenSwitcher == null)
-        {
-            return;
-        }
-        
-        if (sender.ToString() != "Sonar")
+        if (!Configuration.WorldSwitchEnabled || LastSeenSwitcher == null || sender.ToString() != "Sonar")
         {
             return;
         }
@@ -154,6 +135,19 @@ public sealed class Plugin : IDalamudPlugin
         
         Regex rp = new Regex("was just killed", RegexOptions.IgnoreCase);
         if (rp.IsMatch(smessage))
+        {
+            return;
+        }
+
+        var rankPattern = "Rank (";
+        rankPattern += Configuration.SRanks ? "S|SS|SSMinion" : "";
+        rankPattern += Configuration.SRanks && Configuration.ARanks ? "|" : "";
+        rankPattern += Configuration.ARanks ? "A" : "";
+        rankPattern += (Configuration.SRanks || Configuration.ARanks) && Configuration.BRanks ? "|" : "";
+        rankPattern += Configuration.BRanks ? "B" : "";
+        rankPattern += ")";
+        Regex rr = new Regex(rankPattern, RegexOptions.IgnoreCase);
+        if (!rr.IsMatch(smessage))
         {
             return;
         }
@@ -166,6 +160,18 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         var world = m.Groups.Values.ToArray()[1].ToString();
+
+        if (Configuration.CloseOnCurrent && LastSeenCurrentWorld != "" && LastSeenCurrentWorld == world)
+        {
+            try
+            {
+                var values = FormatValues(0);
+                LastSeenSwitcher->FireCallback((uint)values.Length, values);
+            }
+            catch (Exception e)
+            {}
+            return;
+        }
 
         var idx = -1;
         for (var i = 0; i < 18; i++)
@@ -189,17 +195,9 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            // Chat.Print(new()
-            // {
-            //     Type = XivChatType.Debug,
-            //     Name = "World Switcher",
-            //     Message = e.ToString()
-            // });
         }
     }
 
     private void DrawUI() => WindowSystem.Draw();
-
     public void ToggleConfigUI() => ConfigWindow.Toggle();
-    public void ToggleMainUI() => MainWindow.Toggle();
 }

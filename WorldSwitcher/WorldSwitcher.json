@@ -1,12 +1,12 @@
 {
-  "Author": "your name here",
+  "Author": "some catgirl hunter",
   "Name": "World Switcher",
-  "Punchline": "A short one-liner that shows up in /xlplugins.",
-  "Description": "A description that shows up in /xlplugins. List any major slash-command(s).",
+  "Punchline": "Because S rank hunting should not glue you to your PC 24/7",
+  "Description": "Automatically selects a world from world visit menu when Sonar reports a hunt in your game chat",
   "ApplicableVersion": "any",
   "Tags": [
-    "sample",
-    "plugin",
-    "goats"
+    "hunt",
+    "world",
+    "visit"
   ]
 }
