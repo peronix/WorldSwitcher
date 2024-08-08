@@ -30,7 +30,7 @@ public class ConfigWindow : Window, IDisposable
             Configuration.Save();
         }
         
-        var closeOnCurrent = Configuration.WorldSwitchEnabled;
+        var closeOnCurrent = Configuration.CloseOnCurrent;
         if (ImGui.Checkbox("Current World -> Close Switcher", ref closeOnCurrent))
         {
             Configuration.CloseOnCurrent = closeOnCurrent;
