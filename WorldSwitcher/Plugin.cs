@@ -12,6 +12,7 @@ using Dalamud.Plugin.Services;
 using WorldSwitcher.Windows;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
@@ -36,10 +37,11 @@ public sealed class Plugin : IDalamudPlugin
     private ConfigWindow ConfigWindow { get; init; }
 
     private IChatGui Chat { get; init; }
+    private IGameGui GameGui { get; init; }
     private IAddonLifecycle AddonLifecycle { get; init; }
-    
+
     internal string[] LastSeenListEntries { get; set; } = [];
-    internal string LastSeenCurrentWorld { get; set; }
+    internal string LastSeenCurrentWorld { get; set; } = "";
     internal unsafe AtkUnitBase* LastSeenSwitcher;
     
     private AtkValueArray FormatValues(params object[] values)
@@ -47,7 +49,7 @@ public sealed class Plugin : IDalamudPlugin
         return new AtkValueArray(values);
     }
 
-    public Plugin(IChatGui chat, IAddonLifecycle addonLifecycle)
+    public Plugin(IChatGui chat, IGameGui gameGui, IAddonLifecycle addonLifecycle)
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         ConfigWindow = new ConfigWindow(this);
@@ -68,6 +70,8 @@ public sealed class Plugin : IDalamudPlugin
         AddonLifecycle = addonLifecycle;
         AddonLifecycle.RegisterListener(AddonEvent.PostUpdate, "WorldTravelSelect", SetListEntries);
         AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, "WorldTravelSelect", Cleanup);
+
+        GameGui = gameGui;
     }
 
     public void Dispose()
@@ -126,7 +130,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private unsafe void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
     {
-        if (!Configuration.WorldSwitchEnabled || LastSeenSwitcher == null || sender.ToString() != "Sonar")
+        if (sender.ToString() != "Sonar")
         {
             return;
         }
@@ -138,16 +142,30 @@ public sealed class Plugin : IDalamudPlugin
         {
             return;
         }
-
-        var rankPattern = "Rank (";
-        rankPattern += Configuration.SRanks ? "S|SS|SSMinion" : "";
-        rankPattern += Configuration.SRanks && Configuration.ARanks ? "|" : "";
-        rankPattern += Configuration.ARanks ? "A" : "";
-        rankPattern += (Configuration.SRanks || Configuration.ARanks) && Configuration.BRanks ? "|" : "";
-        rankPattern += Configuration.BRanks ? "B" : "";
-        rankPattern += ")";
+        
+        var ranks = Configuration.SRanks ? "S|SS|SSMinion" : "";
+        ranks += Configuration.ARanks ? "|A" : "";
+        ranks += Configuration.BRanks ? "|B" : "";
+        var rankPattern = "Rank (" + ranks.TrimStart('|') + ")";
         Regex rr = new Regex(rankPattern, RegexOptions.IgnoreCase);
         if (!rr.IsMatch(smessage))
+        {
+            return;
+        }
+
+        if (Configuration.OpenMapLink)
+        {
+            foreach (var payload in message.Payloads)
+            {
+                if (payload is MapLinkPayload mapLinkPayload)
+                {
+                    GameGui.OpenMapWithMapLink(mapLinkPayload);
+                    break;
+                }
+            }
+        }
+
+        if (LastSeenSwitcher == null)
         {
             return;
         }
@@ -170,6 +188,11 @@ public sealed class Plugin : IDalamudPlugin
             }
             catch (Exception e)
             {}
+            return;
+        }
+
+        if (!Configuration.WorldSwitchEnabled)
+        {
             return;
         }
 

@@ -13,7 +13,7 @@ public class ConfigWindow : Window, IDisposable
         Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
                 ImGuiWindowFlags.NoScrollWithMouse;
 
-        Size = new Vector2(250, 180);
+        Size = new Vector2(250, 200);
         SizeCondition = ImGuiCond.Always;
 
         Configuration = plugin.Configuration;
@@ -34,6 +34,13 @@ public class ConfigWindow : Window, IDisposable
         if (ImGui.Checkbox("Current World -> Close Switcher", ref closeOnCurrent))
         {
             Configuration.CloseOnCurrent = closeOnCurrent;
+            Configuration.Save();
+        }
+        
+        var openMapLink = Configuration.OpenMapLink;
+        if (ImGui.Checkbox("Open Map Link", ref openMapLink))
+        {
+            Configuration.OpenMapLink = openMapLink;
             Configuration.Save();
         }
         
