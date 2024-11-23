@@ -2,7 +2,6 @@
 using Dalamud.Game.Command;
 using Dalamud.IoC;
 using Dalamud.Plugin;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Dalamud.Game.Addon.Lifecycle;
@@ -13,7 +12,6 @@ using WorldSwitcher.Windows;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
-using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace WorldSwitcher;
@@ -107,7 +105,6 @@ public sealed class Plugin : IDalamudPlugin
             var worldListComponent = (AtkComponentNode*)informationBoxBorder->PrevSiblingNode;
             var nodeList = (AtkComponentNode**)worldListComponent->Component->UldManager.NodeList;
             
-            
             LastSeenListEntries = new string[18];
 
             for (var i = 0; i < 18; i++) {
@@ -122,6 +119,20 @@ public sealed class Plugin : IDalamudPlugin
             var currentWorldContainer = worldListHeader->AtkResNode.PrevSiblingNode;
             var currentWorldName = (AtkTextNode*) currentWorldContainer->ChildNode;
             LastSeenCurrentWorld = currentWorldName->NodeText.ToString();
+            
+            var homeWorldContainer = currentWorldContainer->PrevSiblingNode;
+            var worldInfoHeader = (AtkTextNode*) homeWorldContainer->PrevSiblingNode;
+            informationBox->ToggleVisibility(false);
+            informationBoxBorder->ToggleVisibility(false);
+            homeWorldContainer->ToggleVisibility(false);
+            currentWorldContainer->ToggleVisibility(true);
+            worldListHeader->ToggleVisibility(false);
+            worldInfoHeader->ToggleVisibility(false);
+            
+            UiHelper.SetSize(rootNode, 222, null);
+            UiHelper.SetWindowSize(windowComponent, 222, 280);
+            UiHelper.SetPosition(currentWorldContainer, 12, 90);
+            UiHelper.SetPosition(&worldListComponent->AtkResNode, 10, 40);
         }
         catch (Exception e)
         {
